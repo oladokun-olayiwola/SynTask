@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { upgradeWebSocket, websocket } from "@hono/bun";
+import { upgradeWebSocket } from "@hono/bun";
 import { verify } from "hono/jwt";
 import type { ServerWebSocket } from "bun";
 import { authRoutes } from "./routes/auth";
@@ -30,11 +30,7 @@ app.use(
   })
 );
 
-// Mount REST API Routers
-app.route("/api/auth", authRoutes);
-app.route("/api/tasks", taskRoutes);
-
-// Authenticated WebSocket Gateway
+// WebSocket Gateway Route (Must be explicitly defined on root app)
 app.get(
   "/ws",
   upgradeWebSocket((c) => {
@@ -61,10 +57,20 @@ app.get(
   })
 );
 
+// 3. Mount REST API Routers
+app.route("/api/auth", authRoutes);
+app.route("/api/tasks", taskRoutes);
+
 const PORT = Number(process.env.PORT) || 4000;
 
-export default {
+const server = Bun.serve({
   port: PORT,
   fetch: app.fetch,
-  websocket,
-};
+  websocket: {
+    open() {},
+    message() {},
+    close() {},
+  },
+});
+
+export default server;
