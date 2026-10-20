@@ -1,50 +1,70 @@
 import { useEffect, useRef, useState } from "react";
-import type { WebSocketMessage } from "../types/task";
+import { useAuth } from "../context/AuthContext";
 
-export function useWebSocket(
-  url: string,
-  onMessage: (msg: WebSocketMessage) => void
-) {
+const WS_BASE = import.meta.env.VITE_WS_URL || "ws://localhost:4000/ws";
+
+export const useWebSocket = (onMessage: (data: any) => void) => {
+  const { token } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+
   const onMessageRef = useRef(onMessage);
-  onMessageRef.current = onMessage;
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    if (!token) {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      setIsConnected(false);
+      return;
+    }
+
+    let socket: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
 
     const connect = () => {
-      ws = new WebSocket(url);
+      const wsUrl = `${WS_BASE}?token=${encodeURIComponent(token)}`;
+      socket = new WebSocket(wsUrl);
+      wsRef.current = socket;
 
-      ws.onopen = () => setIsConnected(true);
+      socket.onopen = () => {
+        setIsConnected(true);
+      };
 
-      ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
         try {
-          const parsed: WebSocketMessage = JSON.parse(event.data);
-          onMessageRef.current(parsed);
+          const data = JSON.parse(event.data);
+          onMessageRef.current(data);
         } catch (err) {
-          console.error("Failed to parse incoming WebSocket message:", err);
+          console.error("Failed to parse WS frame:", err);
         }
       };
 
-      ws.onclose = () => {
+      socket.onclose = () => {
         setIsConnected(false);
-        reconnectTimeout = setTimeout(connect, 3000);
+        // Retry connection after 3 seconds if token remains valid
+        reconnectTimeout = setTimeout(() => {
+          if (token) connect();
+        }, 3000);
       };
 
-      ws.onerror = (err) => {
+      socket.onerror = (err) => {
         console.error("WebSocket error:", err);
-        ws?.close();
       };
     };
 
     connect();
 
     return () => {
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      ws?.close();
+      clearTimeout(reconnectTimeout);
+      if (socket) {
+        socket.close();
+      }
     };
-  }, [url]);
+  }, [token]);
 
   return { isConnected };
-}
+};

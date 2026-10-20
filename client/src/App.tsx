@@ -3,13 +3,14 @@ import { Header } from "./components/Header";
 import { Board } from "./components/Board";
 import { TaskModal } from "./components/TaskModal";
 import { Toast } from "./components/Toast";
+import { AuthModal } from "./components/AuthModal";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTasks } from "./hooks/useTasks";
 import type { Task } from "./types/task";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:4000/ws";
-
-export default function App() {
+function MainContent() {
+  const { isAuthenticated, user, logout } = useAuth();
   const {
     tasks,
     isLoading,
@@ -21,7 +22,7 @@ export default function App() {
     deleteTask,
   } = useTasks();
 
-  const { isConnected } = useWebSocket(WS_URL, handleWebSocketMessage);
+  const { isConnected } = useWebSocket(handleWebSocketMessage);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -44,10 +45,16 @@ export default function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <AuthModal />;
+  }
+
   return (
     <div className="min-h-screen bg-[#070d1e] text-[#f8fafc] flex flex-col font-sans">
       <Header
         isConnected={isConnected}
+        user={user}
+        onLogout={logout}
         onOpenCreateModal={openCreateModal}
       />
 
@@ -68,5 +75,13 @@ export default function App() {
 
       <Toast message={errorMessage} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainContent />
+    </AuthProvider>
   );
 }
