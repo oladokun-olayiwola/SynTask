@@ -7,14 +7,23 @@ import type { WebSocketMessage } from "./types/task";
 
 const app = new Hono();
 
-const PORT = Number(process.env.PORT) || 4000;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "*";
+const ALLOWED_ORIGINS = [
+  "https://syn-task.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
 
 app.use(
   "/*",
   cors({
-    origin: CLIENT_ORIGIN,
+    origin: (origin) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin) || process.env.CLIENT_ORIGIN === "*") {
+        return origin || "*";
+      }
+      return process.env.CLIENT_ORIGIN || "https://syn-task.vercel.app";
+    },
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
   })
 );
 
