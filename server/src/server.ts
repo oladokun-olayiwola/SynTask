@@ -1,18 +1,21 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { upgradeWebSocket, websocket } from "@hono/bun";
+import { verify } from "hono/jwt";
+import type { ServerWebSocket } from "bun";
+import { authRoutes } from "./routes/auth";
 import { taskRoutes } from "./routes/tasks";
-import type { WebSocketMessage } from "./types/task";
-
 
 const app = new Hono();
 
+const JWT_SECRET = process.env.JWT_SECRET!;
 const ALLOWED_ORIGINS = [
   "https://syn-task.vercel.app",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
 
+// CORS Middleware
 app.use(
   "/*",
   cors({
@@ -27,34 +30,41 @@ app.use(
   })
 );
 
-let serverRef: any = null;
+// Mount REST API Routers
+app.route("/api/auth", authRoutes);
+app.route("/api/tasks", taskRoutes);
 
-const broadcast = (message: WebSocketMessage) => {
-  if (serverRef) {
-    serverRef.publish("tasks-channel", JSON.stringify(message));
-  }
-};
-
-// Mount Task REST API
-app.route("/api/tasks", taskRoutes(broadcast));
-
-// WebSocket Upgrade route
+// Authenticated WebSocket Gateway
 app.get(
   "/ws",
-  upgradeWebSocket(() => ({
-    onOpen(_event, ws) {
-      ws.raw.subscribe("tasks-channel");
-    },
-    onClose(_event, ws) {
-      ws.raw.unsubscribe("tasks-channel");
-    },
-  }))
+  upgradeWebSocket((c) => {
+    const token = c.req.query("token");
+
+    return {
+      async onOpen(_event, ws) {
+        if (!token) {
+          ws.close(4001, "Unauthorized: Token missing");
+          return;
+        }
+
+        try {
+          const payload = await verify(token, JWT_SECRET, "HS256");
+          const userId = payload.userId as number;
+
+          const rawSocket = ws.raw as ServerWebSocket;
+          rawSocket?.subscribe(`tasks-user-${userId}`);
+        } catch {
+          ws.close(4001, "Unauthorized: Invalid token");
+        }
+      },
+    };
+  })
 );
 
-serverRef = Bun.serve({
+const PORT = Number(process.env.PORT) || 4000;
+
+export default {
+  port: PORT,
   fetch: app.fetch,
   websocket,
-  port: process.env.PORT || 4000,
-});
-
-console.log(`Server listening at http://localhost:${serverRef.port}`);
+};
