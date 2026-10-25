@@ -1,7 +1,7 @@
-import type { Task } from "../db/schema";
+import { tasks, users } from "../db/schema";
 
-export type WebSocketMessage =
-  | { type: "TASK_CREATED"; task: Task }
-  | { type: "TASK_UPDATED"; task: Task }
-  | { type: "TASK_DELETED"; taskId: number }
-  | { type: "TASKS_REORDERED"; tasks: Task[] };
+export type Task = typeof tasks.$inferSelect;
+export type NewTask = typeof tasks.$inferInsert;
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
