@@ -7,7 +7,7 @@
     "db:seed": "bun run src/db/seed.ts"
   },
   "dependencies": {
-    "@hono/bun": "^1.0.0",
+    "@hono/bun": "^1.0.1",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.12",
     "sqlite": "^5.1.1",

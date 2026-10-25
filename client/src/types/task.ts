@@ -2,15 +2,22 @@ export type TaskStatus = "todo" | "in-progress" | "done";
 
 export interface Task {
   id: number;
+  userId: number;
   title: string;
-  description: string | null;
+  description?: string | null;
   status: TaskStatus;
   position: number;
-  createdAt: string | Date;
+  createdAt: string;
 }
 
-export type WebSocketMessage =
-  | { type: "TASK_CREATED"; task: Task }
-  | { type: "TASK_UPDATED"; task: Task }
-  | { type: "TASK_DELETED"; taskId: number }
-  | { type: "TASKS_REORDERED"; tasks: Task[] };
+export interface User {
+  id: number;
+  email: string;
+  username: string;
+  avatarColor: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  token: string | null;
+}
