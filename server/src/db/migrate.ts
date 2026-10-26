@@ -1,17 +1,19 @@
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { db } from "./index";
 
-export async function runMigrations() {
+async function run() {
+  console.log("Applying SQLite migrations...");
   try {
-    console.log("Running database migrations...");
     await migrate(db, { migrationsFolder: "./drizzle" });
-    console.log("Database migrations completed successfully.");
+    console.log("Migrations applied successfully.");
   } catch (err: any) {
-    if (err?.message?.includes("already exists")) {
-      console.warn("Migration warning (table/column already exists), continuing startup:", err.message);
+    if (err?.message?.includes("already exists") || err?.cause?.message?.includes("already exists")) {
+      console.warn("Notice: Table already exists in SQLite DB, skipping initial table creation step.");
     } else {
       console.error("Migration failed:", err);
-      throw err;
+      process.exit(1);
     }
   }
 }
+
+run();
